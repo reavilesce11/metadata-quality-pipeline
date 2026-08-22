@@ -4,6 +4,20 @@ A reproducible Python and SQL portfolio project that turns messy, synthetic epis
 
 This project is inspired by the general problem of metadata quality. It does **not** contain Reelgood data, company code, screenshots, private rules, or confidential workflows.
 
+## Verified sample result
+
+Running the committed synthetic dataset produces:
+
+```text
+Total:    10
+Accepted: 3
+Review:   5
+Rejected: 2
+Issues:   8
+```
+
+The repository includes automated tests for normalization, validation, routing, SQLite persistence, output separation, and duplicate provider IDs.
+
 ## The business problem
 
 Entertainment metadata often arrives with:
@@ -31,6 +45,27 @@ Blind automation is dangerous. This pipeline automates clear cases and sends amb
 7. Writes clean CSV outputs, a JSON summary, and a SQLite audit database.
 8. Runs a SQL quality report over the results.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Incoming CSV] --> B[Preserve raw data]
+    B --> C[Normalize and validate]
+    D[Canonical catalog] --> E[Deterministic match]
+    C --> F{Decision}
+    E --> F
+    F -->|No issues| G[Accepted]
+    F -->|Warnings| H[Human review]
+    F -->|Errors| I[Rejected]
+    G --> J[CSV + SQLite + SQL + HTML]
+    H --> J
+    I --> J
+```
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for decision boundaries, data lineage, and deliberate limitations.
+
+See [`docs/PUBLICATION_SAFETY.md`](docs/PUBLICATION_SAFETY.md) for the privacy boundary and automated publication audit.
+
 ## Quick start
 
 From PowerShell:
@@ -52,7 +87,9 @@ python -m unittest discover -s tests -v
 Generated files appear under `output/`:
 
 - `processed_records.csv`
+- `accepted_records.csv`
 - `review_queue.csv`
+- `rejected_records.csv`
 - `quality_issues.csv`
 - `quality_summary.json`
 - `quality_dashboard.html`
@@ -61,7 +98,7 @@ Generated files appear under `output/`:
 
 ## Data lineage
 
-The original provider values stay in `raw_records`. Normalized and matched values live in `processed_records`. Every warning or error has a stable code in `quality_issues`. This separation makes it possible to answer: what arrived, what changed, why it changed, and what still needs a person.
+The original provider values stay in `raw_records`. Normalized and matched values live in `processed_records`. Accepted, review, and rejected populations are exported separately. Every warning or error has a stable code in `quality_issues`. Duplicate provider IDs are preserved by source row and routed to review instead of crashing the audit database. This separation makes it possible to answer: what arrived, what changed, why it changed, and what still needs a person.
 
 ## Repository structure
 
@@ -76,6 +113,15 @@ output/                generated artifacts, not committed
 ## Skills demonstrated
 
 Python · CSV ingestion · normalization · deterministic matching · data-quality rules · exception handling · SQLite · SQL reporting · auditability · automated testing
+
+## Quality gates
+
+- The sample pipeline must finish without manual setup beyond Python.
+- Automated tests run locally and in GitHub Actions on Python 3.11 and 3.12.
+- A warning must never be silently treated as accepted.
+- A rejected row must never be mixed into the human-review export.
+- Duplicate provider identifiers must remain auditable and must not overwrite data.
+- The publication audit must pass before a public push.
 
 ## Honest scope
 

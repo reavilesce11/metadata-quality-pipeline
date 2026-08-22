@@ -39,13 +39,58 @@ class PipelineTests(unittest.TestCase):
 
             with (output / "review_queue.csv").open(encoding="utf-8", newline="") as handle:
                 review_rows = list(csv.DictReader(handle))
-            self.assertEqual(len(review_rows), 7)
+            self.assertEqual(len(review_rows), 5)
+
+            with (output / "accepted_records.csv").open(encoding="utf-8", newline="") as handle:
+                accepted_rows = list(csv.DictReader(handle))
+            with (output / "rejected_records.csv").open(encoding="utf-8", newline="") as handle:
+                rejected_rows = list(csv.DictReader(handle))
+            self.assertEqual(len(accepted_rows), 3)
+            self.assertEqual(len(rejected_rows), 2)
 
             with closing(sqlite3.connect(output / "metadata_quality.sqlite3")) as connection:
                 raw_count = connection.execute("SELECT COUNT(*) FROM raw_records").fetchone()[0]
                 issue_count = connection.execute("SELECT COUNT(*) FROM quality_issues").fetchone()[0]
             self.assertEqual(raw_count, 10)
             self.assertEqual(issue_count, 8)
+
+    def test_duplicate_provider_ids_are_reviewed_without_breaking_sqlite(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            incoming_path = temporary_root / "incoming_with_duplicate_id.csv"
+            with (self.root / "data" / "incoming_episodes.csv").open(
+                encoding="utf-8", newline=""
+            ) as handle:
+                rows = list(csv.DictReader(handle))
+                fieldnames = list(rows[0])
+            rows[-1]["provider_record_id"] = rows[0]["provider_record_id"]
+            with incoming_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+
+            output = temporary_root / "output"
+            result = run_pipeline(
+                self.root / "data" / "canonical_episodes.csv",
+                incoming_path,
+                output,
+                self.root / "sql" / "quality_report.sql",
+            )
+
+            self.assertEqual(result.accepted_records, 2)
+            self.assertEqual(result.review_records, 6)
+            self.assertEqual(result.rejected_records, 2)
+            self.assertEqual(result.total_issues, 9)
+            with closing(sqlite3.connect(result.database_path)) as connection:
+                duplicate_rows = connection.execute(
+                    "SELECT COUNT(*) FROM processed_records WHERE provider_record_id = 'P001'"
+                ).fetchone()[0]
+                duplicate_issues = connection.execute(
+                    "SELECT COUNT(*) FROM quality_issues "
+                    "WHERE issue_code = 'DUPLICATE_PROVIDER_RECORD_ID'"
+                ).fetchone()[0]
+            self.assertEqual(duplicate_rows, 2)
+            self.assertEqual(duplicate_issues, 1)
 
 
 if __name__ == "__main__":

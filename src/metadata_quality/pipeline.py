@@ -70,13 +70,13 @@ def _build_database(
             """
             CREATE TABLE raw_records (
                 provider_record_id TEXT,
-                source_row INTEGER NOT NULL,
+                source_row INTEGER PRIMARY KEY,
                 raw_json TEXT NOT NULL
             );
 
             CREATE TABLE processed_records (
-                provider_record_id TEXT PRIMARY KEY,
-                source_row INTEGER NOT NULL,
+                provider_record_id TEXT NOT NULL,
+                source_row INTEGER PRIMARY KEY,
                 canonical_id TEXT,
                 series_title_original TEXT,
                 series_title_normalized TEXT,
@@ -99,6 +99,7 @@ def _build_database(
             );
 
             CREATE INDEX idx_processed_status ON processed_records(status);
+            CREATE INDEX idx_processed_provider_id ON processed_records(provider_record_id);
             CREATE INDEX idx_issues_code ON quality_issues(issue_code);
             """
         )
@@ -169,6 +170,7 @@ def run_pipeline(
         if (key := _catalog_key(row)) is not None
     }
     seen_keys: dict[tuple[str, int, int], str] = {}
+    seen_record_ids: dict[str, int] = {}
     all_issues: list[QualityIssue] = []
     processed_rows: list[dict[str, object]] = []
 
@@ -177,6 +179,21 @@ def run_pipeline(
         record_issues = validate_record(row, row_number)
         key = _catalog_key(row)
         canonical = catalog.get(key) if key is not None else None
+
+        if record_id in seen_record_ids:
+            record_issues.append(
+                QualityIssue(
+                    provider_record_id=record_id,
+                    row_number=row_number,
+                    severity="WARNING",
+                    issue_code="DUPLICATE_PROVIDER_RECORD_ID",
+                    field_name="provider_record_id",
+                    observed_value=record_id,
+                    message=f"Same provider_record_id as source row {seen_record_ids[record_id]}.",
+                )
+            )
+        else:
+            seen_record_ids[record_id] = row_number
 
         if key is not None and key in seen_keys:
             record_issues.append(
@@ -248,8 +265,18 @@ def run_pipeline(
     ]
     _write_csv(output_directory / "processed_records.csv", processed_rows, processed_fields)
     _write_csv(
+        output_directory / "accepted_records.csv",
+        [row for row in processed_rows if row["status"] == "ACCEPTED"],
+        processed_fields,
+    )
+    _write_csv(
         output_directory / "review_queue.csv",
-        [row for row in processed_rows if row["status"] != "ACCEPTED"],
+        [row for row in processed_rows if row["status"] == "REVIEW"],
+        processed_fields,
+    )
+    _write_csv(
+        output_directory / "rejected_records.csv",
+        [row for row in processed_rows if row["status"] == "REJECTED"],
         processed_fields,
     )
     _write_csv(
