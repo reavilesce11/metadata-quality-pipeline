@@ -34,8 +34,10 @@ PATTERNS = {
     "private key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "Windows user path": re.compile(r"[A-Za-z]:\\Users\\[^\\\s]+\\", re.IGNORECASE),
     "private trading workspace": re.compile(r"[A-Za-z]:\\IA_TRADING_ORO\\", re.IGNORECASE),
+    # The optional quote before the separator matters: without it the pattern
+    # misses JSON, which is exactly how a leaked key usually looks.
     "credential assignment": re.compile(
-        r"(?i)\b(?:api[_-]?key|password|passwd|secret|token)\s*[:=]\s*['\"][^'\"]+['\"]"
+        r"(?i)\b(?:api[_-]?key|password|passwd|secret|token)['\"]?\s*[:=]\s*['\"][^'\"]+['\"]"
     ),
 }
 
@@ -50,10 +52,10 @@ def publication_files() -> list[Path]:
     return [ROOT / item.decode("utf-8") for item in completed.stdout.split(b"\0") if item]
 
 
-def audit(paths: list[Path]) -> list[str]:
+def audit(paths: list[Path], root: Path = ROOT) -> list[str]:
     findings: list[str] = []
     for path in paths:
-        relative = path.relative_to(ROOT)
+        relative = path.relative_to(root)
         if path.name.lower() in FORBIDDEN_FILENAMES:
             findings.append(f"forbidden filename: {relative}")
         if path.suffix.lower() not in TEXT_SUFFIXES or not path.is_file():

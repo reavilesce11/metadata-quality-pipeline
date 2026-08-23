@@ -18,6 +18,8 @@ Issues:   8
 
 The repository includes automated tests for normalization, validation, routing, SQLite persistence, output separation, and duplicate provider IDs.
 
+The publication guard is tested too. Four tests force it to reject a committed secret, a local Windows path, and a forbidden filename, and one test proves the guard does not exempt its own test suite.
+
 ## The business problem
 
 Entertainment metadata often arrives with:
