@@ -45,6 +45,23 @@ These populations are exported separately. The complete `processed_records` tabl
 
 This supports four questions: What arrived? What was normalized? Why was a decision made? Which rows still require a person?
 
+## Where the language is stricter than Python
+
+Two rules are deliberately narrower than the standard library, because the
+standard library is built for convenience and a quality gate is not.
+
+- **Season and episode numbers** accept only ASCII digits. Python's `int()` reads
+  `+3` as 3, `1_0` as 10, and Arabic-Indic digits as their Western value. A typed
+  underscore silently becoming season 10 is the exact failure this pipeline
+  exists to prevent, so anything else is routed to a person.
+- **`air_date` accepts only `YYYY-MM-DD`.** Since Python 3.11,
+  `date.fromisoformat()` also accepts the basic form `20260131` and ISO week
+  dates such as `2026-W05-1`. Both would let a provider drift away from the
+  published contract without producing a single warning. The shape is checked
+  first, then the calendar, so `2026-02-30` is still rejected.
+
+Both rules are pinned by tests, so a future refactor cannot loosen them quietly.
+
 ## Deliberate limitations
 
 - The dataset is synthetic and small.

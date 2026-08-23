@@ -2,10 +2,18 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from datetime import date
 
 from .normalization import normalize_text, parse_positive_integer
+
+
+# The rule this project publishes is YYYY-MM-DD, so the shape is checked before
+# the calendar is. Since Python 3.11, date.fromisoformat() also accepts the
+# basic form 20260131 and ISO week dates such as 2026-W05-1, which would let a
+# feed drift away from the documented contract without a single warning.
+_ISO_CALENDAR_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 
 @dataclass(frozen=True)
@@ -78,9 +86,13 @@ def validate_record(row: dict[str, str], row_number: int) -> list[QualityIssue]:
 
     air_date = normalize_text(row.get("air_date"))
     if air_date:
-        try:
-            date.fromisoformat(air_date)
-        except ValueError:
+        valid_date = bool(_ISO_CALENDAR_DATE.fullmatch(air_date))
+        if valid_date:
+            try:
+                date.fromisoformat(air_date)
+            except ValueError:
+                valid_date = False
+        if not valid_date:
             issues.append(
                 _issue(
                     record_id,
