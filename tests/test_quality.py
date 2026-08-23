@@ -70,6 +70,21 @@ class QualityRuleTests(unittest.TestCase):
         codes = {issue.issue_code for issue in validate_record(row, 1)}
         self.assertIn("INVALID_ISO_DATE", codes)
 
+    def test_unreadable_and_out_of_range_durations_get_different_codes(self) -> None:
+        """A reviewer must not be told that 45000 and "not_known" failed alike."""
+        base = {
+            "provider_record_id": "P300",
+            "series_title": "Deep Orbit",
+            "season_number": "1",
+            "episode_number": "1",
+            "episode_title": "First Light",
+            "air_date": "2026-01-05",
+        }
+        unreadable = {issue.issue_code for issue in validate_record({**base, "duration_minutes": "not_known"}, 1)}
+        out_of_range = {issue.issue_code for issue in validate_record({**base, "duration_minutes": "45000"}, 1)}
+        self.assertEqual(unreadable, {"INVALID_DURATION_FORMAT"})
+        self.assertEqual(out_of_range, {"IMPLAUSIBLE_DURATION"})
+
 
 if __name__ == "__main__":
     unittest.main()

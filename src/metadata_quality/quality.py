@@ -107,11 +107,27 @@ def validate_record(row: dict[str, str], row_number: int) -> list[QualityIssue]:
 
     duration = normalize_text(row.get("duration_minutes"))
     if duration:
+        # "Unreadable" and "out of range" are different problems and deserve
+        # different codes. Collapsing them would tell a reviewer that 45000 and
+        # "not_known" failed for the same reason, which is not true and sends
+        # them looking in the wrong place.
         try:
-            duration_number = int(duration)
+            duration_number: int | None = int(duration)
         except ValueError:
-            duration_number = 0
-        if not 1 <= duration_number <= 300:
+            duration_number = None
+        if duration_number is None:
+            issues.append(
+                _issue(
+                    record_id,
+                    row_number,
+                    "WARNING",
+                    "INVALID_DURATION_FORMAT",
+                    "duration_minutes",
+                    duration,
+                    "duration_minutes is not a number, so its value cannot be checked.",
+                )
+            )
+        elif not 1 <= duration_number <= 300:
             issues.append(
                 _issue(
                     record_id,
