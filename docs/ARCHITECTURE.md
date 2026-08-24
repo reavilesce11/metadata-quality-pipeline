@@ -50,7 +50,8 @@ This supports four questions: What arrived? What was normalized? Why was a decis
 Two rules are deliberately narrower than the standard library, because the
 standard library is built for convenience and a quality gate is not.
 
-- **Season and episode numbers** accept only ASCII digits. Python's `int()` reads
+- **Season, episode, and duration numbers** accept only ASCII digits after
+  Unicode compatibility normalization. Python's `int()` reads
   `+3` as 3, `1_0` as 10, and Arabic-Indic digits as their Western value. A typed
   underscore silently becoming season 10 is the exact failure this pipeline
   exists to prevent, so anything else is routed to a person.
@@ -60,7 +61,7 @@ standard library is built for convenience and a quality gate is not.
   published contract without producing a single warning. The shape is checked
   first, then the calendar, so `2026-02-30` is still rejected.
 
-Both rules are pinned by tests, so a future refactor cannot loosen them quietly.
+Both rule families are pinned by tests, so a future refactor cannot loosen them quietly.
 
 ## Deliberate limitations
 

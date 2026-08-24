@@ -23,7 +23,7 @@ class QualityRuleTests(unittest.TestCase):
             {
                 "INVALID_POSITIVE_INTEGER",
                 "INVALID_ISO_DATE",
-                "IMPLAUSIBLE_DURATION",
+                "INVALID_DURATION_FORMAT",
                 "EPISODE_TITLE_MISSING",
             },
         )
@@ -84,6 +84,27 @@ class QualityRuleTests(unittest.TestCase):
         out_of_range = {issue.issue_code for issue in validate_record({**base, "duration_minutes": "45000"}, 1)}
         self.assertEqual(unreadable, {"INVALID_DURATION_FORMAT"})
         self.assertEqual(out_of_range, {"IMPLAUSIBLE_DURATION"})
+
+    def test_duration_rejects_python_integer_shortcuts(self) -> None:
+        """Duration must obey the same strict feed syntax as other integers."""
+        base = {
+            "provider_record_id": "P301",
+            "series_title": "Deep Orbit",
+            "season_number": "1",
+            "episode_number": "1",
+            "episode_title": "First Light",
+            "air_date": "2026-01-05",
+        }
+        for value in ("1_0", "+3", "3.0", "٣"):
+            with self.subTest(duration_minutes=value):
+                codes = {
+                    issue.issue_code
+                    for issue in validate_record({**base, "duration_minutes": value}, 1)
+                }
+                self.assertEqual(codes, {"INVALID_DURATION_FORMAT"})
+
+        # NFKC intentionally converts full-width display digits to ASCII.
+        self.assertEqual(validate_record({**base, "duration_minutes": "３"}, 1), [])
 
 
 if __name__ == "__main__":

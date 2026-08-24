@@ -6,7 +6,7 @@ import re
 from dataclasses import asdict, dataclass
 from datetime import date
 
-from .normalization import normalize_text, parse_positive_integer
+from .normalization import normalize_text, parse_ascii_integer, parse_positive_integer
 
 
 # The rule this project publishes is YYYY-MM-DD, so the shape is checked before
@@ -111,10 +111,7 @@ def validate_record(row: dict[str, str], row_number: int) -> list[QualityIssue]:
         # different codes. Collapsing them would tell a reviewer that 45000 and
         # "not_known" failed for the same reason, which is not true and sends
         # them looking in the wrong place.
-        try:
-            duration_number: int | None = int(duration)
-        except ValueError:
-            duration_number = None
+        duration_number = parse_ascii_integer(duration)
         if duration_number is None:
             issues.append(
                 _issue(
@@ -154,4 +151,3 @@ def validate_record(row: dict[str, str], row_number: int) -> list[QualityIssue]:
         )
 
     return issues
-

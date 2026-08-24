@@ -30,12 +30,19 @@ def normalize_key(value: object) -> str:
     return normalize_text(value).casefold()
 
 
-def parse_positive_integer(value: object) -> int | None:
-    """Return a positive integer or None when the value is invalid."""
+def parse_ascii_integer(value: object) -> int | None:
+    """Return an ASCII integer or None when the syntax is invalid."""
 
     text = normalize_text(value)
     if not _ASCII_DIGITS.fullmatch(text):
         return None
-    number = int(text)
-    return number if number > 0 else None
+    return int(text)
 
+
+def parse_positive_integer(value: object) -> int | None:
+    """Return a positive ASCII integer or None when the value is invalid."""
+
+    number = parse_ascii_integer(value)
+    if number is None:
+        return None
+    return number if number > 0 else None
