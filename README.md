@@ -74,20 +74,31 @@ See [`docs/PUBLICATION_SAFETY.md`](docs/PUBLICATION_SAFETY.md) for the privacy b
 
 ## Quick start
 
-From PowerShell:
+Works the same on Windows, macOS and Linux. From the project root:
 
-```powershell
+```
 python -m pip install -e .
 metadata-quality
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests
 ```
 
-Or without installation:
+`metadata-quality` runs the pipeline and writes to `output/`. The test command
+runs the full suite. No third-party dependencies are required.
 
-```powershell
-$env:PYTHONPATH = "$PWD\src"
+To run without installing, put `src` on the import path first — the syntax
+differs per shell:
+
+```
+set PYTHONPATH=src            &:: Windows CMD
+$env:PYTHONPATH = "src"       # Windows PowerShell
+export PYTHONPATH=src         # macOS / Linux
+```
+
+then:
+
+```
 python -m metadata_quality.cli
-python -m unittest discover -s tests -v
+python -m unittest discover -s tests
 ```
 
 Generated files appear under `output/`:
